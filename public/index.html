@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mineazy | Big Spenders Tracking System</title>
+  <!-- SEO & Meta -->
+  <meta name="description" content="Enterprise tracking and analytics for Mineazy Mining Solutions high-value clients and spending trends.">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Dashboard Main Layout -->
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <!-- Mining Drill / Gem SVG -->
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>MINEAZY</h1>
+          <span>MINING SOLUTIONS</span>
+        </div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" data-tab="dashboard">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-btn" data-tab="clients">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Clients</span>
+        </button>
+        <button class="nav-btn" data-tab="transactions">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span>Transactions</span>
+        </button>
+        <button class="nav-btn" data-tab="spenders">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <span>Big Spenders</span>
+        </button>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <button id="btn-show-portability" class="btn-secondary-sm">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          <span>Backup / Restore</span>
+        </button>
+        <div class="system-time">
+          <span>Local Time</span>
+          <span id="live-clock">14:47</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="app-main">
+      <header class="app-header">
+        <div class="header-title">
+          <h2 id="view-title">Dashboard Overview</h2>
+          <p id="view-subtitle">Real-time spending analysis of Mineazy VIP clients</p>
+        </div>
+        <div class="db-status-pill" id="db-status-pill">
+          <span class="db-indicator"></span>
+          <span class="db-status-text">Connecting...</span>
+        </div>
+        <div class="header-actions">
+          <button id="btn-quick-log" class="btn-primary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Log Transaction</span>
+          </button>
+          <button id="btn-quick-client" class="btn-accent">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+            <span>Add Client</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- VIEW: Dashboard -->
+      <section id="dashboard-view" class="tab-view active">
+        <!-- KPI Cards Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon total-revenue">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="kpi-details">
+              <h3>Total Spending</h3>
+              <p class="kpi-value" id="kpi-total-revenue">$0.00</p>
+              <span class="kpi-change trend-up" id="kpi-rev-trend">+14.2% vs last month</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon active-spenders">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="kpi-details">
+              <h3>VIP Spenders</h3>
+              <p class="kpi-value" id="kpi-vip-count">0</p>
+              <span class="kpi-change" id="kpi-vip-subtext">Tier: Diamond & Gold</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon avg-value">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <div class="kpi-details">
+              <h3>Average Order Value</h3>
+              <p class="kpi-value" id="kpi-aov">$0.00</p>
+              <span class="kpi-change trend-up" id="kpi-aov-trend">+5.8% since last quarter</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon total-purchases">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            </div>
+            <div class="kpi-details">
+              <h3>Total Orders</h3>
+              <p class="kpi-value" id="kpi-total-orders">0</p>
+              <span class="kpi-change" id="kpi-orders-trend">From all accounts</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Layout Grid -->
+        <div class="charts-row">
+          <!-- Main Line Chart -->
+          <div class="chart-container large-chart">
+            <div class="chart-header">
+              <h3>Spending & Sales Trends</h3>
+              <span class="chart-subtitle">Monthly purchase distribution</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-sales-trend"></canvas>
+            </div>
+          </div>
+
+          <!-- Category Breakdown Chart -->
+          <div class="chart-container narrow-chart">
+            <div class="chart-header">
+              <h3>Category Breakdown</h3>
+              <span class="chart-subtitle">Product allocation by volume</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-category-shares"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <!-- Top Spenders Bar Chart -->
+          <div class="chart-container large-chart">
+            <div class="chart-header">
+              <h3>Big Spenders Ranks</h3>
+              <span class="chart-subtitle">Top client accounts sorted by lifetime spend</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-top-spenders"></canvas>
+            </div>
+          </div>
+
+          <!-- Quick Leaderboard List -->
+          <div class="chart-container narrow-chart">
+            <div class="chart-header">
+              <h3>Leaderboard</h3>
+              <span class="chart-subtitle">Top 5 purchasing clients</span>
+            </div>
+            <div class="leaderboard-list" id="quick-leaderboard">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Cumulative Spend Chart -->
+        <div class="chart-container">
+          <div class="chart-header">
+            <h3>Cumulative Spenders Growth Timeline</h3>
+            <span class="chart-subtitle">Chronological progression of client investments (running totals)</span>
+          </div>
+          <div class="chart-wrapper" style="min-height: 320px;">
+            <canvas id="chart-cumulative-spend"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: Clients -->
+      <section id="clients-view" class="tab-view">
+        <div class="view-actions-bar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="client-search" placeholder="Search clients, company name, contact...">
+          </div>
+          <div class="filters-group">
+            <select id="filter-client-tier">
+              <option value="all">All VIP Tiers</option>
+              <option value="Diamond VIP">Diamond VIP</option>
+              <option value="Gold Partner">Gold Partner</option>
+              <option value="Standard Partner">Standard Partner</option>
+            </select>
+            <select id="filter-client-status">
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="clients-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="name">Client / Company <span class="sort-icon"></span></th>
+                <th class="sortable" data-sort="tier">VIP Tier <span class="sort-icon"></span></th>
+                <th>Contact Information</th>
+                <th class="sortable numeric" data-sort="spend">Lifetime Spend <span class="sort-icon"></span></th>
+                <th class="sortable numeric" data-sort="orders">Total Orders <span class="sort-icon"></span></th>
+                <th class="sortable" data-sort="last-active">Last Active <span class="sort-icon"></span></th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clients-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- VIEW: Transactions -->
+      <section id="transactions-view" class="tab-view">
+        <div class="view-actions-bar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="trans-search" placeholder="Search transactions, notes, items...">
+          </div>
+          <div class="filters-group flex-wrap">
+            <select id="filter-trans-client">
+              <option value="all">All Clients</option>
+              <!-- Dynamically populated -->
+            </select>
+            <select id="filter-trans-category">
+              <option value="all">All Categories</option>
+              <option value="Workshop">Workshop</option>
+              <option value="Processing">Processing</option>
+              <option value="Bearings">Bearings</option>
+              <option value="Bolts & Nuts">Bolts & Nuts</option>
+              <option value="HDPE Fittings">HDPE Fittings</option>
+              <option value="Chemicals">Chemicals</option>
+            </select>
+            <input type="date" id="filter-trans-start" placeholder="Start Date">
+            <input type="date" id="filter-trans-end" placeholder="End Date">
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="transactions-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="txid">TXID <span class="sort-icon"></span></th>
+                <th class="sortable" data-sort="invoice">Invoice No. <span class="sort-icon"></span></th>
+                <th class="sortable" data-sort="client">Client Name <span class="sort-icon"></span></th>
+                <th class="sortable" data-sort="date">Date <span class="sort-icon"></span></th>
+                <th class="sortable" data-sort="category">Category <span class="sort-icon"></span></th>
+                <th>Notes</th>
+                <th class="sortable numeric" data-sort="amount">Amount (USD) <span class="sort-icon"></span></th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="transactions-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+          
+          <!-- Pagination Footer -->
+          <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background-color: rgba(255,255,255,0.01);">
+            <div id="trans-pagination-info" style="font-size: 0.8rem; color: var(--text-secondary);">
+              Showing 1 to 10 of 20 entries
+            </div>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <button id="btn-trans-prev" class="btn-secondary-sm">Previous</button>
+              <div id="trans-page-numbers" style="display: flex; gap: 0.25rem;"></div>
+              <button id="btn-trans-next" class="btn-secondary-sm">Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: Big Spenders (Ranked Cumulative Spend) -->
+      <section id="spenders-view" class="tab-view">
+        <div class="view-actions-bar flex-wrap">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="spender-search" placeholder="Search spenders, company name, contact...">
+          </div>
+          <div class="filters-group flex-wrap">
+            <select id="spender-filter-period">
+              <option value="all">All Time</option>
+              <option value="month">This Month</option>
+              <option value="90days">Last 90 Days</option>
+              <option value="custom">Custom Date Range</option>
+            </select>
+            <div id="spender-custom-dates" style="display: none; gap: 0.5rem; align-items: center;">
+              <input type="date" id="spender-start-date" placeholder="Start Date">
+              <span style="font-size: 0.75rem; color: var(--text-secondary)">to</span>
+              <input type="date" id="spender-end-date" placeholder="End Date">
+            </div>
+            <button id="btn-export-spenders" class="btn-accent">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="spenders-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="rank">Rank <span class="sort-icon"></span></th>
+                <th class="sortable" data-sort="company">Client / Company <span class="sort-icon"></span></th>
+                <th class="sortable" data-sort="tier">VIP Tier <span class="sort-icon"></span></th>
+                <th class="sortable numeric" data-sort="period-spend">Period Spend <span class="sort-icon"></span></th>
+                <th class="sortable numeric" data-sort="lifetime-spend">Lifetime Spend <span class="sort-icon"></span></th>
+                <th class="sortable numeric" data-sort="orders">Total Orders <span class="sort-icon"></span></th>
+                <th class="sortable" data-sort="last-active">Last Active <span class="sort-icon"></span></th>
+              </tr>
+            </thead>
+            <tbody id="spenders-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+          
+          <!-- Pagination Footer -->
+          <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background-color: rgba(255,255,255,0.01);">
+            <div id="spenders-pagination-info" style="font-size: 0.8rem; color: var(--text-secondary);">
+              Showing 1 to 5 of 7 entries
+            </div>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <button id="btn-spenders-prev" class="btn-secondary-sm">Previous</button>
+              <div id="spenders-page-numbers" style="display: flex; gap: 0.25rem;"></div>
+              <button id="btn-spenders-next" class="btn-secondary-sm">Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- DIALOG MODAL: Log Transaction -->
+  <dialog id="modal-log-transaction" closedby="any" aria-labelledby="title-log-transaction">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="title-log-transaction">Log Mining Purchase</h3>
+        <button class="modal-close-btn" commandfor="modal-log-transaction" command="close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="form-log-transaction" method="dialog">
+        <div class="form-group">
+          <label for="field-tx-client">Customer / Client *</label>
+          <select id="field-tx-client" required>
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="field-tx-amount">Amount (USD) *</label>
+            <input type="number" id="field-tx-amount" min="1" step="0.01" placeholder="e.g. 750000" required>
+          </div>
+          <div class="form-group">
+            <label for="field-tx-category">Category *</label>
+            <select id="field-tx-category" required>
+              <option value="Workshop">Workshop</option>
+              <option value="Processing">Processing</option>
+              <option value="Bearings">Bearings</option>
+              <option value="Bolts & Nuts">Bolts & Nuts</option>
+              <option value="HDPE Fittings">HDPE Fittings</option>
+              <option value="Chemicals">Chemicals</option>
+              <option value="Other">Other...</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Hidden Custom Category Input (shown when 'Other' is selected) -->
+        <div id="group-tx-category-custom" class="form-group" style="display: none; margin-top: -0.5rem; margin-bottom: 0.5rem;">
+          <label for="field-tx-category-custom">Custom Category Name *</label>
+          <input type="text" id="field-tx-category-custom" placeholder="e.g. Conveyor Belts & Rollers">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="field-tx-date">Transaction Date *</label>
+            <input type="date" id="field-tx-date" required>
+          </div>
+          <div class="form-group">
+            <label for="field-tx-invoice">Invoice Number *</label>
+            <input type="text" id="field-tx-invoice" placeholder="e.g. ME-10045" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="field-tx-notes">Purchase Notes</label>
+          <textarea id="field-tx-notes" rows="3" placeholder="Enter equipment models, chemical lists, or delivery terms..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" commandfor="modal-log-transaction" command="close">Cancel</button>
+          <button type="submit" class="btn-primary">Save Transaction</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG MODAL: Add/Edit Client -->
+  <dialog id="modal-client-profile" closedby="any" aria-labelledby="title-client-profile">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="title-client-profile">Manage Customer Profile</h3>
+        <button class="modal-close-btn" commandfor="modal-client-profile" command="close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="form-client-profile" method="dialog">
+        <input type="hidden" id="field-client-id">
+        <div class="form-group">
+          <label for="field-client-company">Company Name *</label>
+          <input type="text" id="field-client-company" placeholder="e.g. Nevada Gold Excavations" required>
+        </div>
+        <div class="form-group">
+          <label for="field-client-contact">Primary Contact Name *</label>
+          <input type="text" id="field-client-contact" placeholder="e.g. John Miller" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="field-client-email">Email Address *</label>
+            <input type="email" id="field-client-email" placeholder="e.g. miller@nevadagold.com" required>
+          </div>
+          <div class="form-group">
+            <label for="field-client-phone">Phone Number</label>
+            <input type="tel" id="field-client-phone" placeholder="e.g. +1 702-555-0199">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="field-client-tier">VIP Segment Segment *</label>
+            <select id="field-client-tier" required>
+              <option value="Diamond VIP">Diamond VIP (Top spenders)</option>
+              <option value="Gold Partner">Gold Partner (Regular large spenders)</option>
+              <option value="Standard Partner">Standard Partner (General corporate)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="field-client-status">Relationship Status *</label>
+            <select id="field-client-status" required>
+              <option value="Active">Active Relationship</option>
+              <option value="Inactive">Inactive Account</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" commandfor="modal-client-profile" command="close">Cancel</button>
+          <button type="submit" class="btn-primary">Save Profile</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG MODAL: Client Details (Rich Profile Drawer/Popup) -->
+  <dialog id="modal-client-detail" closedby="any" class="drawer-dialog" aria-labelledby="title-client-detail">
+    <div class="modal-box drawer-box">
+      <div class="modal-header">
+        <h3 id="title-client-detail">Client Dossier</h3>
+        <button class="modal-close-btn" commandfor="modal-client-detail" command="close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      
+      <div class="drawer-body">
+        <!-- Client Profile Header -->
+        <div class="profile-hero">
+          <div class="profile-avatar-large" id="detail-avatar">NG</div>
+          <div class="profile-meta-main">
+            <div class="profile-tier-row">
+              <h2 id="detail-company-name">Nevada Gold Excavations</h2>
+              <span class="badge" id="detail-tier-badge">Diamond VIP</span>
+            </div>
+            <p id="detail-contact-title">John Miller (Chief of Operations)</p>
+            <div class="profile-contact-details">
+              <span>
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <span id="detail-email">miller@nevadagold.com</span>
+              </span>
+              <span>
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <span id="detail-phone">+1 702-555-0199</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Client Stats Grid -->
+        <div class="detail-stats-grid">
+          <div class="detail-stat-card">
+            <h4>Lifetime Spending</h4>
+            <p class="stat-value" id="detail-stat-spend">$0.00</p>
+          </div>
+          <div class="detail-stat-card">
+            <h4>Total Orders</h4>
+            <p class="stat-value" id="detail-stat-orders">0</p>
+          </div>
+          <div class="detail-stat-card">
+            <h4>Average Purchase</h4>
+            <p class="stat-value" id="detail-stat-avg">$0.00</p>
+          </div>
+          <div class="detail-stat-card">
+            <h4>Max Transaction</h4>
+            <p class="stat-value" id="detail-stat-max">$0.00</p>
+          </div>
+        </div>
+
+        <!-- Client Purchase Charts -->
+        <div class="client-detail-chart-wrapper">
+          <div class="chart-container">
+            <div class="chart-header">
+              <h3>Category Allocation</h3>
+            </div>
+            <div class="chart-wrapper sub-chart">
+              <canvas id="chart-client-categories"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Client Purchase History Ledger -->
+        <div class="client-history-section">
+          <h3>Purchase Ledger History</h3>
+          <div class="table-container small-table">
+            <table class="data-table" id="client-history-table">
+              <thead>
+                <tr>
+                  <th>TXID</th>
+                  <th>Invoice No.</th>
+                  <th>Date</th>
+                  <th>Category</th>
+                  <th>Notes</th>
+                  <th class="numeric">Amount</th>
+                </tr>
+              </thead>
+              <tbody id="client-history-table-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button id="btn-detail-edit" class="btn-primary">Edit Profile</button>
+        <button class="btn-secondary" commandfor="modal-client-detail" command="close">Close Dossier</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- DIALOG MODAL: Data Portability (Backup / Restore) -->
+  <dialog id="modal-portability" closedby="any" aria-labelledby="title-portability">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="title-portability">Data Portability Manager</h3>
+        <button class="modal-close-btn" commandfor="modal-portability" command="close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="portability-tabs">
+        <button class="port-tab-btn active" data-port-tab="export">Export Data</button>
+        <button class="port-tab-btn" data-port-tab="import">Import Data</button>
+      </div>
+      
+      <!-- Export Pane -->
+      <div id="port-export-pane" class="port-pane active">
+        <p class="port-instruction">Copy the JSON database string below to save a backup of the system.</p>
+        <textarea id="export-json-area" readonly rows="8" class="json-code-box"></textarea>
+        <div class="modal-footer">
+          <button id="btn-copy-json" class="btn-primary">Copy to Clipboard</button>
+          <button class="btn-secondary" commandfor="modal-portability" command="close">Close</button>
+        </div>
+      </div>
+
+      <!-- Import Pane -->
+      <div id="port-import-pane" class="port-pane">
+        <p class="port-instruction">Paste a previously exported system backup JSON string to restore the database.</p>
+        <textarea id="import-json-area" rows="8" placeholder='Paste JSON database here (e.g. {"clients": [...], "transactions": [...]})' class="json-code-box"></textarea>
+        <div class="modal-footer">
+          <button id="btn-import-confirm" class="btn-accent">Confirm Restore</button>
+          <button class="btn-secondary" commandfor="modal-portability" command="close">Close</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Custom Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
