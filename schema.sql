@@ -28,3 +28,12 @@ CREATE TABLE IF NOT EXISTS transactions (
   notes TEXT,
   FOREIGN KEY (clientId) REFERENCES clients(id) ON DELETE CASCADE
 );
+
+-- 4. Users table (Authentication & Management)
+CREATE TABLE IF NOT EXISTS users (
+  id VARCHAR(50) PRIMARY KEY,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(50) DEFAULT 'admin',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -122,10 +122,20 @@ const transPageSize = 10;
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Auth Check
+  if (authToken) {
+    document.getElementById('login-overlay').classList.remove('active');
+    if (currentUser && currentUser.role === 'admin') {
+      document.getElementById('nav-users').style.display = 'flex';
+    }
+    loadData();
+  } else {
+    document.getElementById('login-overlay').classList.add('active');
+  }
+
   initLiveClock();
   initTabNavigation();
   initSortListeners();
-  loadData();
   setupModalBackdropListeners();
   setupFormHandlers();
   setupPortabilityTabs();
@@ -291,9 +301,87 @@ function showConnectionErrorBanner() {
   text.textContent = 'Server Offline';
 }
 
+// Auth helper
+let currentUser = JSON.parse(localStorage.getItem('mineazy_user') || 'null');
+let authToken = localStorage.getItem('mineazy_token');
+
+function handleLogout() {
+  localStorage.removeItem('mineazy_user');
+  localStorage.removeItem('mineazy_token');
+  currentUser = null;
+  authToken = null;
+  document.getElementById('login-overlay').classList.add('active');
+  document.getElementById('nav-users').style.display = 'none';
+  
+  // Reset local state to clear persistent data
+  state.clients = [];
+  state.transactions = [];
+  state.categories = [];
+  
+  // Re-render views with empty state
+  renderClientsTable();
+  renderTransactionsTable();
+  renderSpendersTable();
+  syncDashboard();
+  
+  showToast('Successfully logged out', 'info');
+}
+
+// Toast Notification System
+function showToast(message, type = 'success') {
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  
+  let icon = '';
+  if (type === 'success') icon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+  else if (type === 'error') icon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+  else if (type === 'info') icon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+  
+  toast.innerHTML = `
+    ${icon}
+    <span>${message}</span>
+  `;
+  
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('hiding');
+    toast.addEventListener('animationend', () => {
+      toast.remove();
+      if (container.children.length === 0) {
+        container.remove();
+      }
+    });
+  }, 3000);
+}
+
+async function apiFetch(url, options = {}) {
+  if (!authToken) {
+    handleLogout();
+    throw new Error('Not authenticated');
+  }
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${authToken}`
+  };
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401 || res.status === 403) {
+    handleLogout();
+    throw new Error('Authentication failed');
+  }
+  return res;
+}
+
 async function loadData() {
   try {
-    const res = await fetch('/api/data');
+    const res = await apiFetch('/api/data');
     if (!res.ok) throw new Error('API server returned error status');
     
     const data = await res.json();
@@ -328,6 +416,9 @@ async function loadData() {
   
   populateCategoryDropdowns();
   syncDashboard();
+  renderClientsTable();
+  renderTransactionsTable();
+  renderSpendersTable();
 }
 
 function saveData() {
@@ -381,23 +472,20 @@ function populateCategoryDropdowns() {
    ========================================================================== */
 
 function initTabNavigation() {
-  elements.tabButtons.forEach(btn => {
+  const tabButtons = document.querySelectorAll('.nav-btn');
+  const tabViews = document.querySelectorAll('.tab-view');
+  
+  tabButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const targetTab = btn.getAttribute('data-tab');
       
-      // Update Button active classes
-      elements.tabButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      tabButtons.forEach(b => b.classList.remove('active'));
+      tabViews.forEach(v => v.classList.remove('active'));
       
-      // Show / Hide Views
-      elements.tabViews.forEach(view => {
-        if (view.id === `${targetTab}-view`) {
-          view.classList.add('active');
-        } else {
-          view.classList.remove('active');
-        }
-      });
-
+      btn.classList.add('active');
+      const view = document.getElementById(`${targetTab}-view`);
+      if (view) view.classList.add('active');
+      
       // Update Header Text
       if (targetTab === 'dashboard') {
         elements.viewTitle.textContent = "Dashboard Overview";
@@ -416,6 +504,10 @@ function initTabNavigation() {
         elements.viewSubtitle.textContent = "Ranked list of highest-value customer accounts by total purchases";
         spendersCurrentPage = 1;
         renderSpendersTable();
+      } else if (targetTab === 'users') {
+        elements.viewTitle.textContent = "User Management";
+        elements.viewSubtitle.textContent = "Manage system access and roles";
+        loadUsers();
       }
     });
   });
@@ -1333,7 +1425,7 @@ function setupFormHandlers() {
     const status = document.getElementById('field-client-status').value;
     
     try {
-      const res = await fetch('/api/clients', {
+      const res = await apiFetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, company, contact, email, phone, tier, status })
@@ -1361,6 +1453,8 @@ function setupFormHandlers() {
       renderClientsTable();
     }
     
+    
+    showToast("Client profile saved successfully.", "success");
     elements.modalClientProfile.close();
   });
   
@@ -1374,7 +1468,7 @@ function setupFormHandlers() {
     if (category === 'Other') {
       const customCat = elements.fieldTxCategoryCustom.value.trim();
       if (!customCat) {
-        alert("Please enter a custom category name.");
+        showToast("Please enter a custom category name.", 'error');
         return;
       }
       
@@ -1395,7 +1489,7 @@ function setupFormHandlers() {
     const txid = `TX-${Math.floor(10000 + Math.random() * 90000)}`;
     
     try {
-      const res = await fetch('/api/transactions', {
+      const res = await apiFetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ txid, invoiceNo, clientId, amount, category, date, notes })
@@ -1420,6 +1514,8 @@ function setupFormHandlers() {
       renderTransactionsTable();
     }
     
+    
+    showToast("Transaction logged successfully.", "success");
     elements.modalLogTransaction.close();
   });
 }
@@ -1431,7 +1527,7 @@ window.deleteClient = async function(clientId) {
   
   if (confirm(`Are you sure you want to permanently delete the customer profile for ${client.company}? This will also delete all associated purchase transactions.`)) {
     try {
-      const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/clients/${clientId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('API server returned error');
       
       await loadData();
@@ -1451,6 +1547,7 @@ window.deleteClient = async function(clientId) {
     
     // Close detail drawer if active
     elements.modalClientDetail.close();
+    showToast(`Client profile ${client.company} deleted successfully.`, 'success');
   }
 };
 
@@ -1458,7 +1555,7 @@ window.deleteClient = async function(clientId) {
 window.deleteTransaction = async function(txid) {
   if (confirm(`Delete transaction ledger entry ${txid}? This will adjust the client's lifetime spend totals.`)) {
     try {
-      const res = await fetch(`/api/transactions/${txid}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/transactions/${txid}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('API server returned error');
       
       await loadData();
@@ -1629,7 +1726,7 @@ function setupPortabilityTabs() {
           elements.btnCopyJson.style.color = '';
         }, 2000);
       })
-      .catch(err => alert('Failed to copy text: ' + err));
+      .catch(err => showToast('Failed to copy text: ' + err, 'error'));
   });
   
   // Import backup data
@@ -1645,7 +1742,7 @@ function setupPortabilityTabs() {
       
       if (confirm("Are you sure you want to restore this backup? This will overwrite the current live database. This operation is irreversible.")) {
         try {
-          const res = await fetch('/api/import', {
+          const res = await apiFetch('/api/import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: rawJson
@@ -1665,10 +1762,10 @@ function setupPortabilityTabs() {
         }
         
         elements.modalPortability.close();
-        alert("System database restored successfully!");
+        showToast("System database restored successfully!", 'success');
       }
     } catch(err) {
-      alert("Invalid backup configuration. Please ensure you are pasting a valid JSON string exported from this system.\n\nError: " + err.message);
+      showToast("Invalid backup configuration. Please check the JSON format.", 'error');
     }
   });
 }
@@ -1917,7 +2014,7 @@ function renderSpendersTable() {
 function exportSpendersToCSV() {
   const spenders = calculatePeriodSpenders();
   if (spenders.length === 0) {
-    alert("No spender entries available to export.");
+    showToast("No spender entries available to export.", 'info');
     return;
   }
   
@@ -1974,3 +2071,155 @@ function exportSpendersToCSV() {
   link.click();
   document.body.removeChild(link);
 }
+
+/* ==========================================================================
+   AUTHENTICATION & USER MANAGEMENT
+   ========================================================================== */
+
+document.getElementById('form-login').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('login-username').value;
+  const password = document.getElementById('login-password').value;
+  const errorEl = document.getElementById('login-error');
+  const btn = e.target.querySelector('button');
+  
+  errorEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Authenticating...';
+  
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('mineazy_token', authToken);
+    localStorage.setItem('mineazy_user', JSON.stringify(currentUser));
+    
+    document.getElementById('login-overlay').classList.remove('active');
+    if (currentUser.role === 'admin') {
+      document.getElementById('nav-users').style.display = 'flex';
+    } else {
+      document.getElementById('nav-users').style.display = 'none';
+    }
+    
+    document.getElementById('login-username').value = '';
+    document.getElementById('login-password').value = '';
+    
+    await loadData();
+    showToast(`Welcome, ${currentUser.username}!`, 'success');
+  } catch (err) {
+    errorEl.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Authenticate';
+  }
+});
+
+
+
+// Load Users for User Management
+async function loadUsers() {
+  try {
+    const res = await apiFetch('/api/users');
+    if (!res.ok) throw new Error('Failed to load users');
+    const users = await res.json();
+    renderUsersTable(users);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('users-table-body');
+  if (!tbody) return;
+  
+  const searchInput = document.getElementById('user-search');
+  const term = searchInput ? searchInput.value.toLowerCase() : '';
+  
+  const filteredUsers = users.filter(u => u.username.toLowerCase().includes(term));
+  
+  tbody.innerHTML = '';
+  if (filteredUsers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No users found.</td></tr>`;
+    return;
+  }
+  
+  filteredUsers.forEach(user => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${user.username}</strong></td>
+      <td><span class="badge ${user.role === 'admin' ? 'tier-diamond' : 'tier-standard'}">${user.role.toUpperCase()}</span></td>
+      <td>
+        <button class="btn-icon" onclick="deleteUser('${user.id}')" title="Delete User">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Add User Form
+document.getElementById('btn-add-user')?.addEventListener('click', () => {
+  document.getElementById('form-add-user').reset();
+  document.getElementById('add-user-error').textContent = '';
+  document.getElementById('modal-add-user').showModal();
+});
+
+document.getElementById('form-add-user')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('field-user-username').value;
+  const role = document.getElementById('field-user-role').value;
+  const password = document.getElementById('field-user-password').value;
+  const errorEl = document.getElementById('add-user-error');
+  const btn = e.target.querySelector('button[type="submit"]');
+  
+  errorEl.textContent = '';
+  btn.disabled = true;
+  
+  try {
+    const res = await apiFetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, role, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create user');
+    
+    document.getElementById('modal-add-user').close();
+    document.getElementById('field-user-password').value = '';
+    loadUsers();
+    showToast("User created successfully.", 'success');
+  } catch (err) {
+    errorEl.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// Delete User
+window.deleteUser = async function(id) {
+  if (currentUser && currentUser.id === id) {
+    showToast("You cannot delete your own account.", 'error');
+    return;
+  }
+  if (confirm("Are you sure you want to delete this user?")) {
+    try {
+      const res = await apiFetch(`/api/users/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete user');
+      loadUsers();
+      showToast("User deleted successfully.", 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+};
+
+// Search users
+document.getElementById('user-search')?.addEventListener('input', loadUsers);

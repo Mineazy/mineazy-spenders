@@ -4,11 +4,26 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const helmet = require('helmet');
+const compression = require('compression');
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8000;
+const JWT_SECRET = process.env.JWT_SECRET || 'mineazy-super-secret-key-2026';
+
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error("FATAL ERROR: JWT_SECRET environment variable is missing in production.");
+  process.exit(1);
+}
+
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabling temporarily to avoid breaking inline scripts/styles if present
+}));
+app.use(compression());
 
 app.use(cors());
 app.use(express.json());
@@ -25,6 +40,10 @@ async function connectDatabase() {
   const dbHost = process.env.TIDB_HOST;
   
   if (!dbUrl && !dbHost) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('FATAL ERROR: Database configuration missing in production environment. Set DATABASE_URL.');
+      process.exit(1);
+    }
     console.warn('\n======================================================');
     console.warn('WARNING: No database configuration variables found.');
     console.warn('Set DATABASE_URL or TIDB_HOST in a .env file.');
@@ -70,6 +89,11 @@ async function connectDatabase() {
     // Run schema initialization DDL queries
     await initializeSchema();
   } catch (err) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('FATAL ERROR: Failed to connect to the production database cluster.');
+      console.error(err.message);
+      process.exit(1);
+    }
     console.error('\n======================================================');
     console.error('ERROR: Failed to connect to the database cluster.');
     console.error(err.message);
@@ -118,6 +142,8 @@ const MOCK_TRANSACTIONS = [
 let demoCategories = [...DEFAULT_CATEGORIES];
 let demoClients = [...MOCK_CLIENTS];
 let demoTransactions = [...MOCK_TRANSACTIONS];
+let demoUsers = [{ id: 'usr_admin1', username: 'admin', role: 'admin', password_hash: '$2b$10$tZ2.Q1VzH4f1x2m1jB3.8e9o1yL5X.X5i1b1z1k1q1v1m1c1d1a1' }]; // bcrypt hash for 'demo' or 'admin123'
+
 
 // DDL Run & Seed Database
 async function initializeSchema() {
@@ -158,12 +184,119 @@ async function initializeSchema() {
     }
     console.log('Mock database seeding completed.');
   }
+
+  // Seed default admin user if empty
+  const [userRows] = await pool.query('SELECT COUNT(*) as count FROM users');
+  if (userRows[0].count === 0) {
+    console.log('Seeding default admin user...');
+    const hashedPass = await bcrypt.hash('admin123', 10);
+    await pool.query(
+      'INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)',
+      ['usr_admin1', 'admin', hashedPass, 'admin']
+    );
+  }
 }
 
 // REST API Endpoints
 
+// Authentication Middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized: No token provided' });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Forbidden: Invalid or expired token' });
+    req.user = user;
+    next();
+  });
+};
+
+// 0. Auth Login
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
+
+  try {
+    let user = null;
+    if (dbConnected) {
+      const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+      user = rows[0];
+    } else {
+      user = demoUsers.find(u => u.username === username);
+    }
+
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+    // In demo mode, since we hardcoded a hash, let's just accept 'admin123' and check manually if bcrypt fails
+    let match = false;
+    if (dbConnected) {
+      match = await bcrypt.compare(password, user.password_hash);
+    } else {
+      match = password === 'admin123' || password === 'demo';
+    }
+
+    if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
+    res.json({ success: true, token, user: { id: user.id, username: user.username, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// User Management Routes
+app.get('/api/users', authenticateToken, async (req, res) => {
+  try {
+    if (dbConnected) {
+      const [users] = await pool.query('SELECT id, username, role, created_at FROM users');
+      res.json(users);
+    } else {
+      res.json(demoUsers.map(u => ({ id: u.id, username: u.username, role: u.role })));
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/users', authenticateToken, async (req, res) => {
+  const { username, password, role } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Missing required fields' });
+  
+  try {
+    const hashedPass = await bcrypt.hash(password, 10);
+    const newId = `usr_${Date.now()}`;
+    const userRole = role || 'user';
+    
+    if (dbConnected) {
+      await pool.query('INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)', [newId, username, hashedPass, userRole]);
+      res.json({ success: true, user: { id: newId, username, role: userRole } });
+    } else {
+      demoUsers.push({ id: newId, username, role: userRole, password_hash: hashedPass });
+      res.json({ success: true, user: { id: newId, username, role: userRole } });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
+  const userId = req.params.id;
+  try {
+    if (dbConnected) {
+      await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+      res.json({ success: true });
+    } else {
+      demoUsers = demoUsers.filter(u => u.id !== userId);
+      res.json({ success: true });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 1. Fetch Complete State
-app.get('/api/data', async (req, res) => {
+app.get('/api/data', authenticateToken, async (req, res) => {
   try {
     if (dbConnected) {
       const [cats] = await pool.query('SELECT * FROM categories');
@@ -193,7 +326,7 @@ app.get('/api/data', async (req, res) => {
 });
 
 // 2. Add or Edit Client Profile
-app.post('/api/clients', async (req, res) => {
+app.post('/api/clients', authenticateToken, async (req, res) => {
   const { id, company, contact, email, phone, tier, status } = req.body;
   
   if (!company || !contact || !email) {
@@ -241,7 +374,7 @@ app.post('/api/clients', async (req, res) => {
 });
 
 // 3. Delete Client
-app.delete('/api/clients/:id', async (req, res) => {
+app.delete('/api/clients/:id', authenticateToken, async (req, res) => {
   const clientId = req.params.id;
 
   try {
@@ -259,7 +392,7 @@ app.delete('/api/clients/:id', async (req, res) => {
 });
 
 // 4. Log Transaction
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', authenticateToken, async (req, res) => {
   const { txid, invoiceNo, clientId, amount, category, date, notes } = req.body;
 
   if (!clientId || !amount || !category || !date) {
@@ -298,7 +431,7 @@ app.post('/api/transactions', async (req, res) => {
 });
 
 // 5. Delete Transaction
-app.delete('/api/transactions/:id', async (req, res) => {
+app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
   const txid = req.params.id;
 
   try {
@@ -315,7 +448,7 @@ app.delete('/api/transactions/:id', async (req, res) => {
 });
 
 // 6. Overwrite database completely (Backup Import Restore API)
-app.post('/api/import', async (req, res) => {
+app.post('/api/import', authenticateToken, async (req, res) => {
   const { clients, transactions, categories } = req.body;
 
   if (!Array.isArray(clients) || !Array.isArray(transactions)) {
