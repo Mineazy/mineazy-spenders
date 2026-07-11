@@ -232,50 +232,9 @@ function initLiveClock() {
 }
 
 // Default High-Value Mining Client Mock Database
-const MOCK_CLIENTS = [
-  { id: 'cli_1', company: 'Apex Gold Resources', contact: 'Sarah Jenkins', email: 's.jenkins@apex-gold.com', phone: '+1 775-555-0102', tier: 'Diamond VIP', status: 'Active', joinDate: '2025-08-12' },
-  { id: 'cli_2', company: 'Nevada Shaft Drills Inc.', contact: 'Marcus Thorne', email: 'mthorne@nevadadrills.com', phone: '+1 702-555-4491', tier: 'Diamond VIP', status: 'Active', joinDate: '2025-09-01' },
-  { id: 'cli_3', company: 'Glencore Excavators Ltd', contact: 'Evelyn Vane', email: 'e.vane@glencore-excavators.ca', phone: '+1 604-555-9018', tier: 'Gold Partner', status: 'Active', joinDate: '2025-10-15' },
-  { id: 'cli_4', company: 'Sierra Mineral Logistics', contact: 'Carlos Rodriguez', email: 'carlos.r@sierraminerals.cl', phone: '+56 2 5555 1290', tier: 'Gold Partner', status: 'Active', joinDate: '2025-11-20' },
-  { id: 'cli_5', company: 'Yukon Mining Partners', contact: 'Kenji Sato', email: 'k.sato@yukonpartners.ca', phone: '+1 867-555-3211', tier: 'Standard Partner', status: 'Active', joinDate: '2026-01-05' },
-  { id: 'cli_6', company: 'Outback Copper Mines', contact: 'Lachlan Miller', email: 'miller.l@outbackcopper.com.au', phone: '+61 8 9481 0022', tier: 'Standard Partner', status: 'Inactive', joinDate: '2026-02-18' },
-  { id: 'cli_7', company: 'Andesite Extraction Co.', contact: 'Mateo Silva', email: 'msilva@andesite.pe', phone: '+51 1 555-8833', tier: 'Standard Partner', status: 'Active', joinDate: '2026-03-22' }
-];
+const MOCK_CLIENTS = [];
 
-const MOCK_TRANSACTIONS = [
-  // Apex Gold
-  { txid: 'TX-10001', invoiceNo: 'ME-10041', clientId: 'cli_1', date: '2026-01-14', category: 'Workshop', amount: 350000.00, notes: 'Sunsynk 50kW Hybrid Solar Inverter system & lithium batteries for regional office' },
-  { txid: 'TX-10002', invoiceNo: 'ME-10042', clientId: 'cli_1', date: '2026-02-28', category: 'Chemicals', amount: 480000.00, notes: 'Sodium Cyanide briquettes (98% purity, 10-ton shipment)' },
-  { txid: 'TX-10003', invoiceNo: 'ME-10043', clientId: 'cli_1', date: '2026-04-10', category: 'Processing', amount: 820000.00, notes: 'Apex Shaking Tables (gravity ore concentrator) - 4 units' },
-  { txid: 'TX-10004', invoiceNo: 'ME-10044', clientId: 'cli_1', date: '2026-06-18', category: 'Bearings', amount: 75000.00, notes: 'SKF Spherical Roller Bearings for secondary jaw crusher mill' },
-  { txid: 'TX-10005', invoiceNo: 'ME-10045', clientId: 'cli_1', date: '2026-07-05', category: 'Bolts & Nuts', amount: 25000.00, notes: 'M24 High Tensile structural hex bolts & heavy washers' },
-
-  // Nevada Shaft Drills
-  { txid: 'TX-10006', invoiceNo: 'ME-10046', clientId: 'cli_2', date: '2026-01-20', category: 'Processing', amount: 1150000.00, notes: 'Industrial Ball Mill grinding cylinder shell & installation gears' },
-  { txid: 'TX-10007', invoiceNo: 'ME-10047', clientId: 'cli_2', date: '2026-03-15', category: 'HDPE Fittings', amount: 320000.00, notes: 'HDPE PN16 dewatering pipes (110mm, 2.5km) & Plasson couplings' },
-  { txid: 'TX-10008', invoiceNo: 'ME-10048', clientId: 'cli_2', date: '2026-05-02', category: 'Workshop', amount: 180000.00, notes: 'Atlas Copco 15kW heavy duty screw air compressor unit' },
-  { txid: 'TX-10009', invoiceNo: 'ME-10049', clientId: 'cli_2', date: '2026-07-02', category: 'Chemicals', amount: 240000.00, notes: 'Activated Carbon coconut-based granules for Carbon-in-Pulp circuit' },
-
-  // Glencore Excavators
-  { txid: 'TX-10010', invoiceNo: 'ME-10050', clientId: 'cli_3', date: '2026-02-10', category: 'Processing', amount: 690000.00, notes: 'Forged steel grinding balls (70mm) - 50 tons for ball mill feed' },
-  { txid: 'TX-10011', invoiceNo: 'ME-10051', clientId: 'cli_3', date: '2026-04-05', category: 'Chemicals', amount: 95000.00, notes: 'Hydrated lime powder (pH regulator) & floatation frother agents' },
-  { txid: 'TX-10012', invoiceNo: 'ME-10052', clientId: 'cli_3', date: '2026-06-12', category: 'Bearings', amount: 62000.00, notes: 'FAG Tapered Roller Bearings for belt conveyor pulleys' },
-
-  // Sierra Mineral Logistics
-  { txid: 'TX-10013', invoiceNo: 'ME-10053', clientId: 'cli_4', date: '2026-02-22', category: 'Processing', amount: 480000.00, notes: 'Electrowinning cell gold recovery replacement anode set' },
-  { txid: 'TX-10014', invoiceNo: 'ME-10054', clientId: 'cli_4', date: '2026-05-19', category: 'HDPE Fittings', amount: 140000.00, notes: 'High-pressure slurry pipeline valves, tees, and flange adaptors' },
-
-  // Yukon Mining Partners
-  { txid: 'TX-10015', invoiceNo: 'ME-10055', clientId: 'cli_5', date: '2026-03-05', category: 'Workshop', amount: 210000.00, notes: 'Lincoln Electric heavy duty engine-driven welder generator units' },
-  { txid: 'TX-10016', invoiceNo: 'ME-10056', clientId: 'cli_5', date: '2026-05-30', category: 'Bolts & Nuts', amount: 45000.00, notes: 'Foundation anchor bolts (M36) for plant mill mounting' },
-
-  // Outback Copper Mines
-  { txid: 'TX-10017', invoiceNo: 'ME-10057', clientId: 'cli_6', date: '2026-02-02', category: 'Workshop', amount: 160000.00, notes: 'Deye 30kW solar inverter system & backup battery cabinet' },
-
-  // Andesite Extraction Co.
-  { txid: 'TX-10018', invoiceNo: 'ME-10058', clientId: 'cli_7', date: '2026-04-18', category: 'Chemicals', amount: 85000.00, notes: 'Analytical grade nitric acid & flotation collector chemicals' },
-  { txid: 'TX-10019', invoiceNo: 'ME-10059', clientId: 'cli_7', date: '2026-06-25', category: 'HDPE Fittings', amount: 35000.00, notes: 'HDPE compression elbows, branch tees, and ball valves' }
-];
+const MOCK_TRANSACTIONS = [];
 
 function updateDbStatusHeader(dbConnected) {
   const pill = document.getElementById('db-status-pill');
