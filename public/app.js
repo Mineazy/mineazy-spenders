@@ -683,7 +683,7 @@ function syncDashboardCharts() {
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   
   // Set up last 6 months bins
-  const today = new Date(2026, 6, 10); // Simulated date from prompt
+  const today = new Date();
   const labelMonths = [];
   
   for (let i = 5; i >= 0; i--) {
@@ -1332,8 +1332,8 @@ function openLogTransactionModal() {
   elements.formLogTransaction.reset();
   syncClientSelectDropdowns();
   
-  // Preset date with simulated local date (2026-07-10)
-  elements.fieldTxDate.value = "2026-07-10";
+  // Preset date with current local date
+  elements.fieldTxDate.value = new Date().toISOString().split('T')[0];
   
   // Preset a random Invoice Number
   elements.fieldTxInvoice.value = 'ME-' + Math.floor(10000 + Math.random() * 90000);
@@ -1403,7 +1403,7 @@ function setupFormHandlers() {
       } else {
         // Add mode
         const newId = `cli_${Date.now()}`;
-        const joinDate = "2026-07-10"; // Local time setting
+        const joinDate = new Date().toISOString().split('T')[0];
         state.clients.push({ id: newId, company, contact, email, phone, tier, status, joinDate });
       }
       saveData();
@@ -1770,20 +1770,19 @@ function calculatePeriodSpenders() {
   const searchQuery = elements.spenderSearch.value.toLowerCase().trim();
   const period = elements.spenderFilterPeriod.value;
   
-  // Simulated current local date is 2026-07-10
-  const simulatedToday = new Date('2026-07-10');
+  const today = new Date();
   let startDate = null;
   let endDate = null;
   
   if (period === 'month') {
-    // Current month: July 2026
-    startDate = new Date('2026-07-01');
-    endDate = new Date('2026-07-31');
+    // Current month
+    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   } else if (period === '90days') {
     // Last 90 days
-    startDate = new Date(simulatedToday);
-    startDate.setDate(simulatedToday.getDate() - 90);
-    endDate = simulatedToday;
+    startDate = new Date(today);
+    startDate.setDate(today.getDate() - 90);
+    endDate = today;
   } else if (period === 'custom') {
     const rawStart = elements.spenderStartDate.value;
     const rawEnd = elements.spenderEndDate.value;
