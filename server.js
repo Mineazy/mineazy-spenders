@@ -393,7 +393,7 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
   }
 
   try {
-    const pointsEarned = Math.floor(parseFloat(amount) / 100);
+    const pointsEarned = Math.floor(parseFloat(amount) / 1000);
     if (dbConnected) {
       // 1. Check if category is dynamic and insert if new
       const [catRows] = await pool.query('SELECT * FROM categories WHERE name = ?', [category]);
@@ -446,7 +446,7 @@ app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
       const [txRows] = await pool.query('SELECT clientId, amount FROM transactions WHERE txid = ?', [txid]);
       if (txRows.length > 0) {
         const { clientId, amount } = txRows[0];
-        const pointsDeducted = Math.floor(parseFloat(amount) / 100);
+        const pointsDeducted = Math.floor(parseFloat(amount) / 1000);
         await pool.query('DELETE FROM transactions WHERE txid = ?', [txid]);
         await pool.query(
           'UPDATE clients SET loyalty_points = GREATEST(0, loyalty_points - ?) WHERE id = ?',
@@ -459,7 +459,7 @@ app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
     } else {
       const tx = demoTransactions.find(t => t.txid === txid);
       if (tx) {
-        const pointsDeducted = Math.floor(parseFloat(tx.amount) / 100);
+        const pointsDeducted = Math.floor(parseFloat(tx.amount) / 1000);
         const clientIdx = demoClients.findIndex(c => c.id === tx.clientId);
         if (clientIdx !== -1) {
           demoClients[clientIdx].loyalty_points = Math.max(0, (demoClients[clientIdx].loyalty_points || 0) - pointsDeducted);
@@ -499,7 +499,7 @@ app.post('/api/import', authenticateToken, async (req, res) => {
       // Re-seed Clients with points and barcode
       for (const c of clients) {
         const clientTxs = transactions.filter(t => t.clientId === c.id);
-        const points = clientTxs.reduce((sum, t) => sum + Math.floor(parseFloat(t.amount) / 100), 0);
+        const points = clientTxs.reduce((sum, t) => sum + Math.floor(parseFloat(t.amount) / 1000), 0);
         const generatedBarcode = c.barcode || `ME-LY-${Math.floor(100000 + Math.random() * 900000)}`;
         await pool.query(
           'INSERT INTO clients (id, company, contact, email, phone, tier, status, joinDate, barcode, loyalty_points) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -521,7 +521,7 @@ app.post('/api/import', authenticateToken, async (req, res) => {
       demoCategories = Array.isArray(categories) && categories.length > 0 ? categories : [...DEFAULT_CATEGORIES];
       demoClients = clients.map(c => {
         const clientTxs = transactions.filter(t => t.clientId === c.id);
-        const points = clientTxs.reduce((sum, t) => sum + Math.floor(parseFloat(t.amount) / 100), 0);
+        const points = clientTxs.reduce((sum, t) => sum + Math.floor(parseFloat(t.amount) / 1000), 0);
         const generatedBarcode = c.barcode || `ME-LY-${Math.floor(100000 + Math.random() * 900000)}`;
         return {
           ...c,

@@ -1532,6 +1532,12 @@ function setupFormHandlers() {
       
       const newTx = { txid, invoiceNo, clientId, amount, category, date, notes };
       state.transactions.push(newTx);
+      
+      const clientIdx = state.clients.findIndex(c => c.id === clientId);
+      if (clientIdx !== -1) {
+        state.clients[clientIdx].loyalty_points = (state.clients[clientIdx].loyalty_points || 0) + Math.floor(amount / 1000);
+      }
+      
       saveData();
       
       syncDashboard();
@@ -1736,7 +1742,7 @@ window.deleteTransactionFromDossier = async function(txid, clientId) {
       console.warn('API error, deleting locally:', err.message);
       const tx = state.transactions.find(t => t.txid === txid);
       if (tx) {
-        const pointsDeducted = Math.floor(parseFloat(tx.amount) / 100);
+        const pointsDeducted = Math.floor(parseFloat(tx.amount) / 1000);
         const clientIdx = state.clients.findIndex(c => c.id === clientId);
         if (clientIdx !== -1) {
           state.clients[clientIdx].loyalty_points = Math.max(0, (state.clients[clientIdx].loyalty_points || 0) - pointsDeducted);
