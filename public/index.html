@@ -111,6 +111,10 @@
           <span class="db-status-text">Connecting...</span>
         </div>
         <div class="header-actions">
+          <button id="btn-scan-card" class="btn-secondary" style="display: flex; align-items: center; gap: 0.35rem;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="7" y1="7" x2="7" y2="17"/><line x1="10" y1="7" x2="10" y2="17"/><line x1="13" y1="7" x2="13" y2="17"/><line x1="17" y1="7" x2="17" y2="17"/></svg>
+            <span>Scan Card</span>
+          </button>
           <button id="btn-quick-log" class="btn-primary">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>Log Transaction</span>
@@ -530,6 +534,10 @@
             </select>
           </div>
         </div>
+        <div class="form-group">
+          <label for="field-client-barcode">Loyalty Barcode (Optional)</label>
+          <input type="text" id="field-client-barcode" placeholder="Leave blank to auto-generate">
+        </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary" commandfor="modal-client-profile" command="close">Cancel</button>
           <button type="submit" class="btn-primary">Save Profile</button>
@@ -550,29 +558,36 @@
       
       <div class="drawer-body">
         <!-- Client Profile Header -->
-        <div class="profile-hero">
-          <div class="profile-avatar-large" id="detail-avatar">--</div>
-          <div class="profile-meta-main">
-            <div class="profile-tier-row">
-              <h2 id="detail-company-name">-</h2>
-              <span class="badge" id="detail-tier-badge">-</span>
+        <div class="profile-hero" style="justify-content: space-between; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 1.25rem;">
+            <div class="profile-avatar-large" id="detail-avatar">--</div>
+            <div class="profile-meta-main">
+              <div class="profile-tier-row">
+                <h2 id="detail-company-name">-</h2>
+                <span class="badge" id="detail-tier-badge">-</span>
+              </div>
+              <p id="detail-contact-title">-</p>
+              <div class="profile-contact-details">
+                <span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  <span id="detail-email">-</span>
+                </span>
+                <span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  <span id="detail-phone">-</span>
+                </span>
+              </div>
             </div>
-            <p id="detail-contact-title">-</p>
-            <div class="profile-contact-details">
-              <span>
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                <span id="detail-email">-</span>
-              </span>
-              <span>
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                <span id="detail-phone">-</span>
-              </span>
-            </div>
+          </div>
+          <!-- Barcode Display Container -->
+          <div class="dossier-barcode-box" style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: var(--border-radius-md); border: 1px solid var(--border-color);">
+            <div id="detail-barcode-svg-wrapper"></div>
+            <span id="detail-barcode-value" style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;"></span>
           </div>
         </div>
 
         <!-- Client Stats Grid -->
-        <div class="detail-stats-grid">
+        <div class="detail-stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));">
           <div class="detail-stat-card">
             <h4>Lifetime Spending</h4>
             <p class="stat-value" id="detail-stat-spend">$0.00</p>
@@ -588,6 +603,10 @@
           <div class="detail-stat-card">
             <h4>Max Transaction</h4>
             <p class="stat-value" id="detail-stat-max">$0.00</p>
+          </div>
+          <div class="detail-stat-card" style="border-color: rgba(255, 183, 3, 0.3); background: rgba(255, 183, 3, 0.02);">
+            <h4 style="color: var(--gold-primary);">Loyalty Points</h4>
+            <p class="stat-value" id="detail-stat-points" style="color: var(--gold-primary); text-shadow: 0 0 8px rgba(255, 183, 3, 0.2);">0</p>
           </div>
         </div>
 
@@ -616,6 +635,7 @@
                   <th>Category</th>
                   <th>Notes</th>
                   <th class="numeric">Amount</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="client-history-table-body">
@@ -627,6 +647,10 @@
       </div>
       
       <div class="modal-footer">
+        <button id="btn-detail-log-tx" class="btn-accent" style="margin-right: auto; display: flex; align-items: center; gap: 0.35rem;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Log Purchase</span>
+        </button>
         <button id="btn-detail-edit" class="btn-primary">Edit Profile</button>
         <button class="btn-secondary" commandfor="modal-client-detail" command="close">Close Dossier</button>
       </div>
@@ -700,6 +724,29 @@
         <div class="modal-footer">
           <button type="button" class="btn-secondary" commandfor="modal-add-user" command="close">Cancel</button>
           <button type="submit" class="btn-primary">Create User</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG MODAL: Scan Loyalty Card -->
+  <dialog id="modal-barcode-scan" closedby="any" aria-labelledby="title-barcode-scan">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="title-barcode-scan">Scan Loyalty Card</h3>
+        <button class="modal-close-btn" commandfor="modal-barcode-scan" command="close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="form-barcode-scan" method="dialog">
+        <div class="form-group">
+          <label for="field-scan-input">Loyalty Card Barcode</label>
+          <input type="text" id="field-scan-input" placeholder="Scan barcode or type code (e.g. ME-LY-123456)" required autocomplete="off">
+        </div>
+        <div id="scan-error" class="login-error"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" commandfor="modal-barcode-scan" command="close">Cancel</button>
+          <button type="submit" class="btn-primary">Lookup Profile</button>
         </div>
       </form>
     </div>

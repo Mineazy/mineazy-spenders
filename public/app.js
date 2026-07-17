@@ -99,8 +99,44 @@ const elements = {
   spendersPaginationInfo: document.getElementById('spenders-pagination-info'),
   btnSpendersPrev: document.getElementById('btn-spenders-prev'),
   btnSpendersNext: document.getElementById('btn-spenders-next'),
-  spendersPageNumbers: document.getElementById('spenders-page-numbers')
+  spendersPageNumbers: document.getElementById('spenders-page-numbers'),
+  
+  // Loyalty Features
+  btnScanCard: document.getElementById('btn-scan-card'),
+  modalBarcodeScan: document.getElementById('modal-barcode-scan'),
+  formBarcodeScan: document.getElementById('form-barcode-scan'),
+  fieldScanInput: document.getElementById('field-scan-input'),
+  scanError: document.getElementById('scan-error'),
+  fieldClientBarcode: document.getElementById('field-client-barcode'),
+  btnDetailLogTx: document.getElementById('btn-detail-log-tx'),
+  detailStatPoints: document.getElementById('detail-stat-points'),
+  detailBarcodeSvgWrapper: document.getElementById('detail-barcode-svg-wrapper'),
+  detailBarcodeValue: document.getElementById('detail-barcode-value')
 };
+
+// SVG-based Barcode Generator (Pure JS)
+function generateBarcodeSVG(value) {
+  if (!value) return '';
+  // Simple deterministic pseudo-barcode encoding
+  let binaryString = "10101101101"; // start code
+  for (let i = 0; i < value.length; i++) {
+    const charCode = value.charCodeAt(i);
+    let charPattern = (charCode % 64).toString(2).padStart(6, '0');
+    for (let j = 0; j < charPattern.length; j++) {
+      binaryString += charPattern[j] === '1' ? '110' : '100';
+    }
+  }
+  binaryString += "101101101"; // end code
+  
+  let svgContent = `<svg width="150" height="40" viewBox="0 0 ${binaryString.length * 1.5} 40" xmlns="http://www.w3.org/2000/svg" style="background: white; border-radius: 4px; padding: 2px;">`;
+  for (let i = 0; i < binaryString.length; i++) {
+    if (binaryString[i] === '1') {
+      svgContent += `<rect x="${i * 1.5}" y="2" width="1.2" height="36" fill="black" />`;
+    }
+  }
+  svgContent += `</svg>`;
+  return svgContent;
+}
 
 // Sort Tracking State
 let currentSorts = {
@@ -156,6 +192,28 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.btnQuickLog.addEventListener('click', () => openLogTransactionModal());
   elements.btnQuickClient.addEventListener('click', () => openAddClientModal());
   elements.btnShowPortability.addEventListener('click', () => openPortabilityModal());
+
+  // Loyalty Scan triggers
+  elements.btnScanCard.addEventListener('click', () => {
+    elements.fieldScanInput.value = '';
+    elements.scanError.textContent = '';
+    elements.modalBarcodeScan.showModal();
+    setTimeout(() => elements.fieldScanInput.focus(), 50);
+  });
+
+  elements.formBarcodeScan.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const barcode = elements.fieldScanInput.value.trim();
+    if (!barcode) return;
+    
+    const client = state.clients.find(c => c.barcode === barcode);
+    if (client) {
+      elements.modalBarcodeScan.close();
+      openClientDossier(client.id);
+    } else {
+      elements.scanError.textContent = 'No VIP customer found with this barcode.';
+    }
+  });
 
   // Big Spenders View Listeners
   elements.spenderSearch.addEventListener('input', () => {
@@ -1328,7 +1386,7 @@ function setupModalBackdropListeners() {
 }
 
 // Log Transaction Form Modal
-function openLogTransactionModal() {
+function openLogTransactionModal(clientId = null) {
   elements.formLogTransaction.reset();
   syncClientSelectDropdowns();
   
@@ -1338,6 +1396,10 @@ function openLogTransactionModal() {
   // Preset a random Invoice Number
   elements.fieldTxInvoice.value = 'ME-' + Math.floor(10000 + Math.random() * 90000);
   
+  if (clientId) {
+    elements.fieldTxClient.value = clientId;
+  }
+  
   elements.modalLogTransaction.showModal();
 }
 
@@ -1345,6 +1407,7 @@ function openLogTransactionModal() {
 function openAddClientModal() {
   elements.formClientProfile.reset();
   elements.fieldClientId.value = '';
+  elements.fieldClientBarcode.value = '';
   elements.titleClientProfile.textContent = 'Register Customer Profile';
   elements.modalClientProfile.showModal();
 }
@@ -1361,6 +1424,7 @@ function openEditClientModal(clientId) {
   document.getElementById('field-client-phone').value = client.phone || '';
   document.getElementById('field-client-tier').value = client.tier;
   document.getElementById('field-client-status').value = client.status;
+  elements.fieldClientBarcode.value = client.barcode || '';
   
   elements.titleClientProfile.textContent = 'Update Customer Profile';
   
@@ -1382,12 +1446,13 @@ function setupFormHandlers() {
     const phone = document.getElementById('field-client-phone').value.trim();
     const tier = document.getElementById('field-client-tier').value;
     const status = document.getElementById('field-client-status').value;
+    const barcode = elements.fieldClientBarcode.value.trim();
     
     try {
       const res = await apiFetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, company, contact, email, phone, tier, status })
+        body: JSON.stringify({ id, company, contact, email, phone, tier, status, barcode })
       });
       if (!res.ok) throw new Error('API server returned error');
       
@@ -1398,13 +1463,14 @@ function setupFormHandlers() {
         // Edit mode
         const idx = state.clients.findIndex(c => c.id === id);
         if (idx !== -1) {
-          state.clients[idx] = { ...state.clients[idx], company, contact, email, phone, tier, status };
+          state.clients[idx] = { ...state.clients[idx], company, contact, email, phone, tier, status, barcode: barcode || state.clients[idx].barcode };
         }
       } else {
         // Add mode
         const newId = `cli_${Date.now()}`;
         const joinDate = new Date().toISOString().split('T')[0];
-        state.clients.push({ id: newId, company, contact, email, phone, tier, status, joinDate });
+        const generatedBarcode = barcode || `ME-LY-${Math.floor(100000 + Math.random() * 900000)}`;
+        state.clients.push({ id: newId, company, contact, email, phone, tier, status, joinDate, barcode: generatedBarcode, loyalty_points: 0 });
       }
       saveData();
       syncDashboard();
@@ -1553,6 +1619,12 @@ window.openClientDossier = function(clientId) {
   const avatar = document.getElementById('detail-avatar');
   avatar.textContent = getInitials(client.company);
   
+  // Barcode & Loyalty
+  const barcodeVal = client.barcode || 'NO BARCODE';
+  elements.detailBarcodeValue.textContent = barcodeVal;
+  elements.detailBarcodeSvgWrapper.innerHTML = generateBarcodeSVG(barcodeVal);
+  elements.detailStatPoints.textContent = client.loyalty_points || 0;
+  
   // KPIs
   document.getElementById('detail-stat-spend').textContent = formatCurrency(client.totalSpent);
   document.getElementById('detail-stat-orders').textContent = client.orderCount;
@@ -1565,12 +1637,18 @@ window.openClientDossier = function(clientId) {
   // Edit Profile Dossier Action Link
   elements.btnDetailEdit.onclick = () => openEditClientModal(client.id);
   
+  // Log Purchase action
+  elements.btnDetailLogTx.onclick = () => {
+    elements.modalClientDetail.close();
+    openLogTransactionModal(client.id);
+  };
+  
   // Rebuild Client History Table
   const historyBody = document.getElementById('client-history-table-body');
   historyBody.innerHTML = '';
   
   if (clientTx.length === 0) {
-    historyBody.innerHTML = `<tr><td colspan="6" class="empty-state-row">No documented purchases.</td></tr>`;
+    historyBody.innerHTML = `<tr><td colspan="7" class="empty-state-row">No documented purchases.</td></tr>`;
   } else {
     // Sort transactions by date desc
     const sortedTx = [...clientTx].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1583,6 +1661,11 @@ window.openClientDossier = function(clientId) {
         <td><span class="category-indicator cat-${tx.category.toLowerCase().replace(' ', '-')}">${tx.category}</span></td>
         <td class="cell-notes" title="${tx.notes || ''}">${tx.notes || '-'}</td>
         <td class="numeric" style="font-weight:600; color:var(--gold-primary)">${formatCurrency(tx.amount)}</td>
+        <td>
+          <button class="btn-icon delete-action" onclick="deleteTransactionFromDossier('${tx.txid}', '${client.id}')" title="Delete Purchase">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+          </button>
+        </td>
       `;
       historyBody.appendChild(tr);
     });
@@ -1640,6 +1723,34 @@ window.openClientDossier = function(clientId) {
   });
 
   elements.modalClientDetail.showModal();
+};
+
+window.deleteTransactionFromDossier = async function(txid, clientId) {
+  if (confirm('Are you sure you want to delete this purchase transaction? This will also deduct the corresponding loyalty points.')) {
+    try {
+      const res = await apiFetch(`/api/transactions/${txid}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('API server returned error');
+      await loadData();
+      openClientDossier(clientId); // Reopen/refresh dossier
+    } catch (err) {
+      console.warn('API error, deleting locally:', err.message);
+      const tx = state.transactions.find(t => t.txid === txid);
+      if (tx) {
+        const pointsDeducted = Math.floor(parseFloat(tx.amount) / 100);
+        const clientIdx = state.clients.findIndex(c => c.id === clientId);
+        if (clientIdx !== -1) {
+          state.clients[clientIdx].loyalty_points = Math.max(0, (state.clients[clientIdx].loyalty_points || 0) - pointsDeducted);
+        }
+        state.transactions = state.transactions.filter(t => t.txid !== txid);
+      }
+      saveData();
+      syncDashboard();
+      renderClientsTable();
+      renderTransactionsTable();
+      openClientDossier(clientId); // Refresh dossier
+    }
+    showToast('Transaction successfully deleted.', 'success');
+  }
 };
 
 /* ==========================================================================

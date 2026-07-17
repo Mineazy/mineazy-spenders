@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS clients (
   phone VARCHAR(50) NOT NULL,
   tier VARCHAR(50) NOT NULL,
   status VARCHAR(50) NOT NULL,
-  joinDate VARCHAR(50) NOT NULL
+  joinDate VARCHAR(50) NOT NULL,
+  barcode VARCHAR(100) UNIQUE,
+  loyalty_points INT DEFAULT 0
 );
 
 -- 3. Purchases/Transactions table

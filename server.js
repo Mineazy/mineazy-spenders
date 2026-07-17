@@ -129,6 +129,25 @@ async function initializeSchema() {
     await pool.query(statement);
   }
 
+  // Apply schema migrations (adding barcode, unique index, and loyalty_points columns if they do not exist)
+  try {
+    await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS barcode VARCHAR(100)');
+  } catch (err) {
+    console.log('Barcode column migration warning:', err.message);
+  }
+
+  try {
+    await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS uq_barcode ON clients (barcode)');
+  } catch (err) {
+    console.log('Barcode unique index migration warning:', err.message);
+  }
+
+  try {
+    await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS loyalty_points INT DEFAULT 0');
+  } catch (err) {
+    console.log('Loyalty points column migration warning:', err.message);
+  }
+
   // Seed Categories if empty
   const [catRows] = await pool.query('SELECT COUNT(*) as count FROM categories');
   if (catRows[0].count === 0) {
@@ -299,7 +318,7 @@ app.get('/api/data', authenticateToken, async (req, res) => {
 
 // 2. Add or Edit Client Profile
 app.post('/api/clients', authenticateToken, async (req, res) => {
-  const { id, company, contact, email, phone, tier, status } = req.body;
+  const { id, company, contact, email, phone, tier, status, barcode } = req.body;
   
   if (!company || !contact || !email) {
     return res.status(400).json({ error: 'Missing required company metadata fields.' });
@@ -310,32 +329,34 @@ app.post('/api/clients', authenticateToken, async (req, res) => {
       if (id) {
         // Edit mode
         await pool.query(
-          'UPDATE clients SET company = ?, contact = ?, email = ?, phone = ?, tier = ?, status = ? WHERE id = ?',
-          [company, contact, email, phone, tier, status, id]
+          'UPDATE clients SET company = ?, contact = ?, email = ?, phone = ?, tier = ?, status = ?, barcode = ? WHERE id = ?',
+          [company, contact, email, phone, tier, status, barcode || null, id]
         );
         res.json({ success: true, message: 'Client profile updated.' });
       } else {
         // Add mode
         const newId = `cli_${Date.now()}`;
         const joinDate = new Date().toISOString().split('T')[0];
+        const generatedBarcode = barcode || `ME-LY-${Math.floor(100000 + Math.random() * 900000)}`;
         await pool.query(
-          'INSERT INTO clients (id, company, contact, email, phone, tier, status, joinDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [newId, company, contact, email, phone, tier, status, joinDate]
+          'INSERT INTO clients (id, company, contact, email, phone, tier, status, joinDate, barcode, loyalty_points) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [newId, company, contact, email, phone, tier, status, joinDate, generatedBarcode, 0]
         );
-        res.json({ success: true, client: { id: newId, company, contact, email, phone, tier, status, joinDate } });
+        res.json({ success: true, client: { id: newId, company, contact, email, phone, tier, status, joinDate, barcode: generatedBarcode, loyalty_points: 0 } });
       }
     } else {
       // Demo Mode
       if (id) {
         const idx = demoClients.findIndex(c => c.id === id);
         if (idx !== -1) {
-          demoClients[idx] = { ...demoClients[idx], company, contact, email, phone, tier, status };
+          demoClients[idx] = { ...demoClients[idx], company, contact, email, phone, tier, status, barcode: barcode || demoClients[idx].barcode };
         }
         res.json({ success: true, message: 'Client profile updated in memory.' });
       } else {
         const newId = `cli_${Date.now()}`;
         const joinDate = new Date().toISOString().split('T')[0];
-        const newClient = { id: newId, company, contact, email, phone, tier, status, joinDate };
+        const generatedBarcode = barcode || `ME-LY-${Math.floor(100000 + Math.random() * 900000)}`;
+        const newClient = { id: newId, company, contact, email, phone, tier, status, joinDate, barcode: generatedBarcode, loyalty_points: 0 };
         demoClients.push(newClient);
         res.json({ success: true, client: newClient });
       }
@@ -372,6 +393,7 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
   }
 
   try {
+    const pointsEarned = Math.floor(parseFloat(amount) / 100);
     if (dbConnected) {
       // 1. Check if category is dynamic and insert if new
       const [catRows] = await pool.query('SELECT * FROM categories WHERE name = ?', [category]);
@@ -386,6 +408,12 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
         [actualTxid, invoiceNo || '', clientId, amount, category, date, notes || '']
       );
 
+      // 3. Update client's loyalty points
+      await pool.query(
+        'UPDATE clients SET loyalty_points = loyalty_points + ? WHERE id = ?',
+        [pointsEarned, clientId]
+      );
+
       res.json({ success: true, txid: actualTxid });
     } else {
       // Demo Mode
@@ -393,8 +421,15 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
         demoCategories.push(category);
       }
       const actualTxid = txid || `TX-${Math.floor(10000 + Math.random() * 90000)}`;
-      const newTx = { txid: actualTxid, invoiceNo: invoiceNo || '', clientId, amount, category, date, notes: notes || '' };
+      const newTx = { txid: actualTxid, invoiceNo: invoiceNo || '', clientId, amount: parseFloat(amount), category, date, notes: notes || '' };
       demoTransactions.push(newTx);
+
+      // Update client's loyalty points in memory
+      const clientIdx = demoClients.findIndex(c => c.id === clientId);
+      if (clientIdx !== -1) {
+        demoClients[clientIdx].loyalty_points = (demoClients[clientIdx].loyalty_points || 0) + pointsEarned;
+      }
+
       res.json({ success: true, txid: actualTxid });
     }
   } catch (err) {
@@ -408,10 +443,29 @@ app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
 
   try {
     if (dbConnected) {
-      await pool.query('DELETE FROM transactions WHERE txid = ?', [txid]);
+      const [txRows] = await pool.query('SELECT clientId, amount FROM transactions WHERE txid = ?', [txid]);
+      if (txRows.length > 0) {
+        const { clientId, amount } = txRows[0];
+        const pointsDeducted = Math.floor(parseFloat(amount) / 100);
+        await pool.query('DELETE FROM transactions WHERE txid = ?', [txid]);
+        await pool.query(
+          'UPDATE clients SET loyalty_points = GREATEST(0, loyalty_points - ?) WHERE id = ?',
+          [pointsDeducted, clientId]
+        );
+      } else {
+        await pool.query('DELETE FROM transactions WHERE txid = ?', [txid]);
+      }
       res.json({ success: true });
     } else {
-      demoTransactions = demoTransactions.filter(t => t.txid !== txid);
+      const tx = demoTransactions.find(t => t.txid === txid);
+      if (tx) {
+        const pointsDeducted = Math.floor(parseFloat(tx.amount) / 100);
+        const clientIdx = demoClients.findIndex(c => c.id === tx.clientId);
+        if (clientIdx !== -1) {
+          demoClients[clientIdx].loyalty_points = Math.max(0, (demoClients[clientIdx].loyalty_points || 0) - pointsDeducted);
+        }
+        demoTransactions = demoTransactions.filter(t => t.txid !== txid);
+      }
       res.json({ success: true });
     }
   } catch (err) {
@@ -442,11 +496,14 @@ app.post('/api/import', authenticateToken, async (req, res) => {
         await pool.query('INSERT INTO categories (name) VALUES (?)', [cat]);
       }
 
-      // Re-seed Clients
+      // Re-seed Clients with points and barcode
       for (const c of clients) {
+        const clientTxs = transactions.filter(t => t.clientId === c.id);
+        const points = clientTxs.reduce((sum, t) => sum + Math.floor(parseFloat(t.amount) / 100), 0);
+        const generatedBarcode = c.barcode || `ME-LY-${Math.floor(100000 + Math.random() * 900000)}`;
         await pool.query(
-          'INSERT INTO clients (id, company, contact, email, phone, tier, status, joinDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [c.id, c.company, c.contact, c.email, c.phone, c.tier, c.status, c.joinDate]
+          'INSERT INTO clients (id, company, contact, email, phone, tier, status, joinDate, barcode, loyalty_points) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [c.id, c.company, c.contact, c.email, c.phone, c.tier, c.status, c.joinDate, generatedBarcode, points]
         );
       }
 
@@ -462,7 +519,16 @@ app.post('/api/import', authenticateToken, async (req, res) => {
     } else {
       // Demo Mode restore
       demoCategories = Array.isArray(categories) && categories.length > 0 ? categories : [...DEFAULT_CATEGORIES];
-      demoClients = [...clients];
+      demoClients = clients.map(c => {
+        const clientTxs = transactions.filter(t => t.clientId === c.id);
+        const points = clientTxs.reduce((sum, t) => sum + Math.floor(parseFloat(t.amount) / 100), 0);
+        const generatedBarcode = c.barcode || `ME-LY-${Math.floor(100000 + Math.random() * 900000)}`;
+        return {
+          ...c,
+          barcode: generatedBarcode,
+          loyalty_points: points
+        };
+      });
       demoTransactions = [...transactions];
       res.json({ success: true, message: 'Memory database successfully restored.' });
     }
